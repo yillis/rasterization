@@ -1,67 +1,11 @@
-#define TINYOBJLOADER_IMPLEMENTATION
-
 #include "stdafx.h"
 #include "rst.h"
-#include "ObjLoader.h"
 
 #include <memory>
 #include <fstream>
 
 using namespace wm;
 
-void read_obj(std::string filename, Rst& rst, float aspect = 1.f, Vector4f pos = { 0,0,0,1 })
-{
-	std::string err;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	bool success = tinyobj::LoadObj(shapes, materials, err, filename.c_str());
-
-	std::array<Vector3f, 3> color;
-	color[0] = color[1] = color[2] = { 255,255,255 };
-	std::array<Vector3f, 3> normal;
-	std::array<Vector4f, 3> coor;
-	std::array<float, 3> u;
-	std::array<float, 3> v;
-
-	if (success) {
-		for (const auto& shape : shapes) {
-			Mesh mesh;
-
-			int index = 0;
-			for (int i = 0; i < shape.mesh.num_vertices.size(); ++i) {
-				int num = shape.mesh.num_vertices[i]; // for triangle, the value is 3
-				for (int j = 0; j < num; ++j) {
-					// for each vex
-					int id = shape.mesh.indices[index++];
-
-					for (int k = 0; k < 3; ++k) {
-						// read coor & normals
-						coor[j][k] = shape.mesh.positions[3 * id + k];
-
-						if (shape.mesh.normals.size() > 0) {
-							normal[j][k] = shape.mesh.normals[3 * id + k];
-						}
-					}
-					coor[j][3] = 1.f;
-
-					// for u, v
-					if (shape.mesh.texcoords.size() > 0) {
-						u[j] = shape.mesh.texcoords[2 * id + 1];
-						v[j] = shape.mesh.texcoords[2 * id + 2];
-					}
-				}
-				mesh.objects.emplace_back(std::make_shared<Triangle>(coor, color, normal, u, v));
-			}
-			// ToDo: <bug> why the pos can change the rotate direct??? 2020-8-29
-			//     : maybe my eye is blind. 2020-8-30
-			rst.add_mesh(std::move(mesh), aspect, pos);
-		}
-	}
-	else {
-		std::cout << err << "\n";
-		std::cout << "open failed.\n";
-	}
-}
 
 // ToDo:
 // 1. finish bound, realize svh tree
@@ -74,17 +18,11 @@ void read_obj(std::string filename, Rst& rst, float aspect = 1.f, Vector4f pos =
 
 int main()
 {
-	//std::array<Vector4f, 3> arr; 
-	//arr[0] = { 1, 1, 0, 1 };
-	//arr[1] = { 0, 0, 0, 1 };
-	//arr[2] = { 1, 0, 0, 1 };
-	//Triangle t(arr, {}, {});
-	//auto [a, b, c] = t.barycentric2d(Vector2f(1, 0));
-	//std::cout << a << " " << b << " " << c << std::endl;
+	//test();
 
-	Rst rst(1000, 1000);
+	Rst rst(1000, 1000, shader::texture_fragment_shader);
 	
-	read_obj("./model/97-free_091_aya_obj/091_W_Aya_100K.obj", rst, 0.002f, { 0,0,0,1 });
+	rst.read_obj("./model/97-free_091_aya_obj/091_W_Aya_100K.obj", 0.002f, { 0,0,0,1 });
 	rst.show_objects();
 
 	Camera camera;

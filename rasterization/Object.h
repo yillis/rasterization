@@ -2,6 +2,7 @@
 #define OBJECT__H
 #pragma once
 
+
 #include <vector>
 #include <string>
 #include <memory>
@@ -10,6 +11,9 @@
 
 #include "Vector.h"
 #include "Bound.h"
+
+//#define STB_IMAGE_IMPLEMENTATION
+//#include "stb_image.h"
 
 namespace wm
 {
@@ -23,38 +27,67 @@ namespace wm
 			:r(_r), g(_g), b(_b) {}
 		Color(unsigned char color) :r(color), g(color), b(color) {}
 		Color(const Color& color) :r(color.r), g(color.g), b(color.b) {}
+		unsigned char& operator[](int i)
+		{
+			return *(&r + i);
+		}
+		unsigned char operator[](int i) const
+		{
+			return *(&r + i);
+		}
+		Color operator*(float rhs) const
+		{
+			return Color(r * rhs, g * rhs, b * rhs);
+		}
+		Color operator+(Color color) const
+		{
+			return Color(r + color.r, g + color.g, b + color.b);
+		}
 	};
 
 	class Texture {
 	private:
-		std::vector<std::vector<Color> > color_;
+		unsigned char* data_;
+		int w_;
+		int h_;
+		int n_;
 	public:
 		Texture(std::string filename)
-			:color_()
+			:data_(nullptr), w_(0), h_(0), n_(0)
 		{
-			// ToDo: read the picture file from path
+			//data_ = stbi_load(filename.c_str(), &w_, &h_, &n_, 0);
 		}
+		Texture(unsigned char* data, int w, int h, int n)
+			:data_(data), w_(w), h_(h), n_(n)
+		{}
 
 		Color get_color(float u, float v)
 		{
-			// ToDo: return the color[u][v]
+			Color res;
+			int i = (1.f - v) * (h_ - 1);
+			int j = u * (w_ - 1);
+			res.r = data_[i * w_ * n_ + j * n_ + 0];
+			res.g = data_[i * w_ * n_ + j * n_ + 1];
+			res.b = data_[i * w_ * n_ + j * n_ + 2];
+			return res;
 		}
+		~Texture() { delete data_; }
 	};
 
 	class Object {
 	public:
 		std::array<Vector4f, 3> vex;
 		std::array<Vector3f, 3> color;
-		std::array<Vector3f, 3> n;
+		std::array<Vector4f, 3> n;
 		std::array<float, 3>    u;
 		std::array<float, 3>    v;
 		std::shared_ptr<Texture> texture;
 		Bound                   bound;
 
 		Object(const std::array<Vector4f, 3>& _vex) :vex(_vex), color(), n(), u(), v(), texture(nullptr), bound() {} // not implement, for test now
-		Object(const std::array<Vector4f, 3>& _vex, const std::array<Vector3f, 3>& _color, const std::array<Vector3f, 3>& _n,
-			const std::array<float, 3> _u, const std::array<float, 3> _v) :
-			vex(_vex), color(_color), n(_n), u(_u), v(_v), texture(nullptr)
+		Object(const std::array<Vector4f, 3>& _vex, const std::array<Vector3f, 3>& _color, const std::array<Vector4f, 3>& _n,
+			const std::array<float, 3> _u, const std::array<float, 3> _v, const std::shared_ptr<Texture>& _texture=nullptr) :
+			vex(_vex), color(_color), n(_n), u(_u), v(_v), texture(_texture)
 		{
 			using std::fmax;
 			Vector3f lower = {
@@ -78,9 +111,9 @@ namespace wm
 
 	class Triangle :public Object {
 	public:
-		Triangle(const std::array<Vector4f, 3>& _vex, const std::array<Vector3f, 3>& _color, const std::array<Vector3f, 3>& _n,
-			const std::array<float, 3> _u, const std::array<float, 3> _v) :
-			Object(_vex, _color, _n, _u, _v) {}
+		Triangle(const std::array<Vector4f, 3>& _vex, const std::array<Vector3f, 3>& _color, const std::array<Vector4f, 3>& _n,
+			const std::array<float, 3>& _u, const std::array<float, 3>& _v, const std::shared_ptr<Texture>& _texture = nullptr) :
+			Object(_vex, _color, _n, _u, _v, _texture) {}
 		Vector3f barycentric2d(const Vector2f& p)
 		{
 			auto ab = vex[1] - vex[0];
@@ -109,7 +142,7 @@ namespace wm
 			for (auto& vec : vec_arr) {
 				vec.standard();
 			}
-			return std::make_shared<Triangle>(vec_arr, color, n, u ,v);
+			return std::make_shared<Triangle>(vec_arr, color, n, u, v, texture);
 		}
 	};
 
@@ -173,4 +206,9 @@ namespace wm
 
 } // !namesapce wm
 
+// global func
+inline wm::Color operator*(float rhs, const wm::Color& color)
+{
+	return color * rhs;
+}
 #endif // !OBJECT__H

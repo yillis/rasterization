@@ -156,6 +156,7 @@
     <ClInclude Include="ObjLoader.h" />
     <ClInclude Include="rst.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="stb_image.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="Vector.h" />

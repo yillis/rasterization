@@ -4,6 +4,7 @@
 
 #include <stdexcept>
 #include <cmath>
+#include <array>
 
 namespace wm 
 {
@@ -140,6 +141,20 @@ namespace wm
 			res[i][i] = 1.f;
 		}
 		return res;
+	}
+
+	namespace math {
+		template<class Attr>
+		inline Attr interpolate(const std::array<Attr, 3>& attr, const Vector3f& barycentric, const std::array<Vector4f, 3>& vex, float z_inter)
+		{
+			auto [alpha, beta, gamma] = barycentric;
+			auto res = z_inter * (
+				alpha * attr[0] * (-1.f / vex[0].z) +
+				beta * attr[1] * (-1.f / vex[1].z) +
+				gamma * attr[2] * (-1.f / vex[2].z)
+				);
+			return res;
+		}
 	}
 } // !namespace wm
 

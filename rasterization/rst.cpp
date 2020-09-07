@@ -1,8 +1,95 @@
 #include "stdafx.h"
 #include "rst.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "ObjLoader.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 const float PI = 3.1415926;
 
+void test()
+{
+	std::string imgfile = "./model/97-free_091_aya_obj/091_W_Aya_2K_01.jpg";
+	int w, h, n;
+	unsigned char* data = stbi_load(imgfile.c_str(), &w, &h, &n, 0);
+
+	std::string filename = "tmp.ppm";
+	std::ofstream file(filename, std::ios::out | std::ios::binary);
+	file << "P6\n" << 2048 << " " << 2048 << "\n" << "255\n";
+	for (int i = 0; i < 2048; ++i) {
+		for (int j = 0; j < 2048; ++j) {
+			file << data[i * 2048 * n + j * n + 0] << data[i * 2048 * n + j * n + 1] << data[i * 2048 * n + j * n + 2];
+		}
+	}
+}
+
+void wm::Rst::read_obj(const std::string& filename, float aspect, Vector4f pos)
+{
+	std::string err;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	bool success = tinyobj::LoadObj(shapes, materials, err, filename.c_str());
+
+	std::array<Vector3f, 3> color;
+	color[0] = color[1] = color[2] = { 255,255,255 };
+	std::array<Vector4f, 3> normal;
+	std::array<Vector4f, 3> coor;
+	std::array<float, 3> u;
+	std::array<float, 3> v;
+
+	// ToDo: move this params to:
+	// auto texture = std::make_shared<Texture>(imgfile);
+	std::string imgfile = "./model/97-free_091_aya_obj/091_W_Aya_2K_01.jpg";
+	int w, h, n;
+	unsigned char* data = stbi_load(imgfile.c_str(), &w, &h, &n, 0);
+	auto texture = std::make_shared<Texture>(data, w, h, n);
+
+	if (success) {
+		for (const auto& shape : shapes) {
+			Mesh mesh;
+
+			int index = 0;
+			for (int i = 0; i < shape.mesh.num_vertices.size(); ++i) {
+				int num = shape.mesh.num_vertices[i]; // for triangle, the value is 3
+				for (int j = 0; j < num; ++j) {
+					// for each vex
+					int id = shape.mesh.indices[index++];
+
+					for (int k = 0; k < 3; ++k) {
+						// read coor & normals
+						coor[j][k] = shape.mesh.positions[3 * id + k];
+
+						if (shape.mesh.normals.size() > 0) {
+							normal[j][k] = shape.mesh.normals[3 * id + k];
+						}
+					}
+					coor[j][3] = 1.f;
+					normal[j][3] = 0.f;
+
+					// for u, v
+					if (shape.mesh.texcoords.size() > 0) {
+						// how stupid i write this bug here! 2020-9-7
+						/*u[j] = shape.mesh.texcoords[2 * id + 1];
+						v[j] = shape.mesh.texcoords[2 * id + 2];*/
+
+						u[j] = shape.mesh.texcoords[2 * id + 0];
+						v[j] = shape.mesh.texcoords[2 * id + 1];
+					}
+				}
+				mesh.objects.emplace_back(std::make_shared<Triangle>(coor, color, normal, u, v, texture));
+			}
+			// ToDo: <bug> why the pos can change the rotate direct??? 2020-8-29
+			//     : maybe my eye is blind. 2020-8-30
+			add_mesh(std::move(mesh), aspect, pos);
+		}
+	}
+	else {
+		std::cout << err << "\n";
+		std::cout << "open failed.\n";
+	}
+}
 
 void wm::Rst::add_mesh(const Mesh& mesh, float aspect, Vector4f pos)
 {
@@ -96,19 +183,19 @@ void wm::Rst::rasterization(const std::shared_ptr<Object>& object, const std::sh
 		for (int y = y_min; y < y_max; ++y) {
 			auto p = Vector2f(x + 0.5f, y + 0.5f);
 			if (clip_object->is_contain_point2d(p)) {
-				//      a      b     c
-				auto [alpha, beta, gamma] = clip_object->barycentric2d(p);
+				auto barycentric = clip_object->barycentric2d(p);
+				auto [alpha, beta, gamma] = barycentric;
 				float z_inter = -1.f / (alpha / clip_object->vex[0].z + beta / clip_object->vex[1].z + gamma / clip_object->vex[2].z);
-				auto normal = z_inter * (
-					alpha * object->n[0] * (1.f / clip_object->vex[0].z) +
-					beta * object->n[1] * (1.f / clip_object->vex[1].z) +
-					gamma * object->n[2] * (1.f / clip_object->vex[2].z)
-					);
-				normal = (normal + Vector3f(1.f, 1.f, 1.f)) * 0.5f;
+				
 				if (x >= 0 && x < scene_width_ && y >= 0 && y < scene_height_) {
 					if (z_inter < depth_[scene_height_ - 1 - y][x]) {
-						// ToDo: use payload shader
-						plot(y, x, Color(255 * normal[0], 255 * normal[1], 255 * normal[2]));
+						// ToDo: use payload shader 2020-9-4
+						// finish. 2020-9-7
+						Payload payload(clip_object, barycentric, z_inter);
+						auto color = shader_(payload);
+
+
+						plot(y, x, color);
 						depth_[scene_height_ - 1 - y][x] = z_inter;
 					}
 				}

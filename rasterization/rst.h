@@ -14,9 +14,10 @@
 #include "Camera.h"
 #include "Shader.h"
 
+void test();
+
 namespace wm
 {
-
 	class Rst {
 	private:
 		std::vector<Mesh> meshs_;
@@ -28,7 +29,7 @@ namespace wm
 		size_t scene_width_;
 		std::function<Color(const Payload&)> shader_;
 	public:
-		Rst(size_t scene_height, size_t scene_width, const std::function<Color(const Payload&)> shader=normal_shader)
+		Rst(size_t scene_height, size_t scene_width, const std::function<Color(const Payload&)> shader=shader::normal_fragment_shader)
 			:
 			meshs_(),
 			model_(),
@@ -41,6 +42,8 @@ namespace wm
 			buffer_(std::vector<std::vector<Color> >(scene_height, std::vector<Color>(scene_width))),
 			depth_(std::vector<std::vector<float> >(scene_height, std::vector<float>(scene_width, (std::numeric_limits<float>::max)())))
 		{}
+
+		void read_obj(const std::string& filename, float aspect = 1.f, Vector4f pos = { 0,0,0,1 });
 		// ToDo: rotate
 		void add_mesh(const Mesh& mesh, float aspect = 1.f, Vector4f pos = { 0,0,0,1 });
 		void add_mesh(Mesh&& mesh, float aspect = 1.f, Vector4f pos = { 0,0,0,1 });
@@ -70,6 +73,7 @@ namespace wm
 		}
 		void display_line(const std::string& filename = "temp.ppm");
 		void display_rst(const std::string& filename = "temp.ppm");
+
 	private:
 		std::vector<std::vector<Color> > buffer_;
 		std::vector<std::vector<float> > depth_;
