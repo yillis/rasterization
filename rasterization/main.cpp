@@ -8,6 +8,7 @@ using namespace wm;
 
 
 // ToDo:
+// 0. blin-phone light model
 // 1. finish bound, realize svh tree
 // 2. occlude
 // 3. render
@@ -18,12 +19,10 @@ using namespace wm;
 
 int main()
 {
-	//test();
-
 	Rst rst(1000, 1000, shader::texture_fragment_shader);
 	
-	rst.read_obj("./model/97-free_091_aya_obj/091_W_Aya_100K.obj", 0.002f, { 0,0,0,1 });
-	rst.show_objects();
+	rst.read_obj("./model/spot/spot_triangulated_good.obj", 1.f, { 0,1.f,0,1 });
+//	rst.open_msaa(16);
 
 	Camera camera;
 	camera.aspect = 1.f;

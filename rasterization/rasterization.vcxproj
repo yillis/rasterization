@@ -152,13 +152,14 @@
   <ItemGroup>
     <ClInclude Include="Bound.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Light.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="ObjLoader.h" />
+    <ClInclude Include="Pixel.h" />
     <ClInclude Include="rst.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="util.h" />
     <ClInclude Include="Vector.h" />
   </ItemGroup>
   <ItemGroup>

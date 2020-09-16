@@ -13,45 +13,60 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="头文件\Core">
+      <UniqueIdentifier>{623d332d-f8bb-49a0-97d1-6714a4634353}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Props">
+      <UniqueIdentifier>{938d955b-b627-4e4c-8c96-7e2fe61f725f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Kernel">
+      <UniqueIdentifier>{cdee92ed-96f8-4b2c-b013-8ea6c31e6fe1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Kernel">
+      <UniqueIdentifier>{55418ae0-3ed7-40a7-9545-177385a07694}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="rst.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\Kernel</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Vector.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Object.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rst.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="util.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ObjLoader.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Bound.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Shader.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="Vector.h">
+      <Filter>头文件\Core</Filter>
     </ClInclude>
     <ClInclude Include="stb_image.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjLoader.h">
+      <Filter>头文件\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Bound.h">
+      <Filter>头文件\Props</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>头文件\Props</Filter>
+    </ClInclude>
+    <ClInclude Include="Object.h">
+      <Filter>头文件\Props</Filter>
+    </ClInclude>
+    <ClInclude Include="rst.h">
+      <Filter>头文件\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="Shader.h">
+      <Filter>头文件\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="Light.h">
+      <Filter>头文件\Props</Filter>
+    </ClInclude>
+    <ClInclude Include="Pixel.h">
+      <Filter>头文件\Props</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

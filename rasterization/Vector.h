@@ -14,6 +14,8 @@ namespace wm
 	class Vector2f;
 	class Vector3f;
 	class Vector4f;
+	class Matrix3f;
+	class Matrix4f;
 
 	class Vector2f {
 	public:
@@ -26,9 +28,11 @@ namespace wm
 		Vector2f operator-(const Vector2f& v) const;
 		Vector2f operator-(void) const;
 		Vector2f operator+(const Vector2f& v) const;
+		Vector2f operator+(float n) const;
 		Vector3f cross_product(const Vector2f& v) const;
 
 		Vector2f() :x(0.f), y(0.f) {}
+		Vector2f(float n) :x(n), y(n) {}
 		Vector2f(float _x, float _y) :x(_x), y(_y) {}
 	};
 	class Vector3f {
@@ -43,12 +47,14 @@ namespace wm
 		Vector3f operator-(const Vector3f& v) const;
 		Vector3f operator-(void) const;
 		Vector3f operator+(const Vector3f& v) const;
+		Vector3f operator+(float n) const;
 		Vector3f cross_product(const Vector3f& v) const;
 
 		void standard() { if (z != 0) { x /= z, y /= z, z = 1.f; } }
 		Vector2f vec2() const;
 
 		Vector3f() :x(0.f), y(0.f), z(0.f) {}
+		Vector3f(float n) :x(n), y(n), z(n) {}
 		Vector3f(float _x, float _y, float _z) :x(_x), y(_y), z(_z) {}
 	};
 
@@ -65,6 +71,7 @@ namespace wm
 		Vector4f operator-(const Vector4f& v) const;
 		Vector4f operator-(void) const;
 		Vector4f operator+(const Vector4f& v) const;
+		Vector4f operator+(float n) const;
 		Vector4f cross_product3(const Vector4f& v) const; // Æë´Î×ø±ê
 		
 
@@ -73,6 +80,7 @@ namespace wm
 		Vector2f vec2() const;
 
 		Vector4f() :x(0.f), y(0.f), z(0.f), w(0.f) {}
+		Vector4f(float n) :x(n), y(n), z(n), w(n) {}
 		Vector4f(float _x, float _y, float _z, float _w) :x(_x), y(_y), z(_z), w(_w) {}
 	};
 
@@ -142,20 +150,6 @@ namespace wm
 		}
 		return res;
 	}
-
-	namespace math {
-		template<class Attr>
-		inline Attr interpolate(const std::array<Attr, 3>& attr, const Vector3f& barycentric, const std::array<Vector4f, 3>& vex, float z_inter)
-		{
-			auto [alpha, beta, gamma] = barycentric;
-			auto res = z_inter * (
-				alpha * attr[0] * (-1.f / vex[0].z) +
-				beta * attr[1] * (-1.f / vex[1].z) +
-				gamma * attr[2] * (-1.f / vex[2].z)
-				);
-			return res;
-		}
-	}
 } // !namespace wm
 
 // global operator override func ---------------------------------------------------------------
@@ -163,13 +157,25 @@ inline wm::Vector2f operator*(float n, const wm::Vector2f& v)
 {
 	return v * n;
 }
+inline wm::Vector2f operator-(float n, const wm::Vector2f& v)
+{
+	return -v + n;
+}
 inline wm::Vector3f operator*(float n, const wm::Vector3f& v)
 {
 	return v * n;
 }
+inline wm::Vector3f operator-(float n, const wm::Vector3f& v)
+{
+	return -v + n;
+}
 inline wm::Vector4f operator*(float n, const wm::Vector4f& v)
 {
 	return v * n;
+}
+inline wm::Vector4f operator-(float n, const wm::Vector4f& v)
+{
+	return -v + n;
 }
 inline wm::Matrix3f operator*(float n, const wm::Matrix3f& m)
 {
@@ -223,6 +229,11 @@ inline wm::Vector2f wm::Vector2f::operator+(const Vector2f& v) const
 	return Vector2f(x + v.x, y + v.y);
 }
 
+inline wm::Vector2f wm::Vector2f::operator+(float n) const
+{
+	return Vector2f(x + n, y + n);
+}
+
 inline wm::Vector3f wm::Vector2f::cross_product(const Vector2f& v) const
 {
 	return Vector3f(0.f, 0.f, x * v.y - y * v.x);
@@ -265,6 +276,10 @@ inline wm::Vector3f wm::Vector3f::operator-(void) const
 inline wm::Vector3f wm::Vector3f::operator+(const Vector3f& v) const
 {
 	return Vector3f(x + v.x, y + v.y, z + v.z);
+}
+inline wm::Vector3f wm::Vector3f::operator+(float n) const
+{
+	return Vector3f(x + n, y + n, z + n);
 }
 inline wm::Vector3f wm::Vector3f::cross_product(const Vector3f& v) const
 {
@@ -316,6 +331,10 @@ inline wm::Vector4f wm::Vector4f::operator-(void) const
 inline wm::Vector4f wm::Vector4f::operator+(const Vector4f& v) const
 {
 	return Vector4f(x + v.x, y + v.y, z + v.z, w + v.w);
+}
+inline wm::Vector4f wm::Vector4f::operator+(float n) const
+{
+	return Vector4f(x + n, y + n, z + n, w + n);
 }
 inline wm::Vector4f wm::Vector4f::cross_product3(const Vector4f& v) const
 {
@@ -424,5 +443,41 @@ inline wm::Vector4f wm::Matrix4f::operator*(const Vector4f& v) const
 
 // !Matrix4f class func ---------------------------------------------------------------
 
+// ToDo: transfrom to wm-math.h
+namespace wm {
+	namespace math {
+		inline float fmax3(float x, float y, float z) { return fmax(x, fmax(y, z)); };
+		inline float fmin3(float x, float y, float z) { return fmin(x, fmin(y, z)); };
+
+		inline Vector3f blend_color(const Vector3f& a, const Vector3f& b)
+		{
+			return 1.f - ((1.f - a) + (1.f - b)) * 0.5f;
+		}
+
+		inline float interpolate_view_space_z_depth(const Vector3f& barycentric, const Vector3f& z)
+		{
+			auto [alpha, beta, gamma] = barycentric;
+			return -1.f / (alpha / z[0] + beta / z[1] + gamma / z[2]);
+		}
+
+		template<class Attr>
+		inline Attr interpolate3d(const std::array<Attr, 3>& attr, const Vector3f& barycentric, const std::array<Vector4f, 3>& vex, float z_inter)
+		{
+			auto [alpha, beta, gamma] = barycentric;
+			auto res = z_inter * (
+				alpha * attr[0] * (-1.f / vex[0].z) +
+				beta * attr[1] * (-1.f / vex[1].z) +
+				gamma * attr[2] * (-1.f / vex[2].z)
+				);
+			return res;
+		}
+
+		template<class T>
+		inline Vector3f to_vec3f(const T& t)
+		{
+			return Vector3f(t[0], t[1], t[2]);
+		}
+	}
+}
 #endif // !VECTOR__H
 

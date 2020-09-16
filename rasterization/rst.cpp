@@ -41,7 +41,7 @@ void wm::Rst::read_obj(const std::string& filename, float aspect, Vector4f pos)
 
 	// ToDo: move this params to:
 	// auto texture = std::make_shared<Texture>(imgfile);
-	std::string imgfile = "./model/97-free_091_aya_obj/091_W_Aya_2K_01.jpg";
+	std::string imgfile = "./model/spot/spot_texture.png";
 	int w, h, n;
 	unsigned char* data = stbi_load(imgfile.c_str(), &w, &h, &n, 0);
 	auto texture = std::make_shared<Texture>(data, w, h, n);
@@ -109,7 +109,7 @@ void wm::Rst::add_mesh(Mesh&& mesh, float aspect, Vector4f pos)
 void wm::Rst::display_line(const std::string& filename)
 {
 	for (auto& v : buffer_) {
-		std::fill(v.begin(), v.end(), Color(0, 0, 0));
+		std::fill(v.begin(), v.end(), Pixel(samples_));
 	}
 	
 	auto vp = projection_ * view_;
@@ -125,12 +125,7 @@ void wm::Rst::display_line(const std::string& filename)
 
 void wm::Rst::display_rst(const std::string& filename)
 {
-	for (auto& v : depth_) {
-		std::fill(v.begin(), v.end(), (std::numeric_limits<float>::max)());
-	}
-	for (auto& v : buffer_) {
-		std::fill(v.begin(), v.end(), Color(0, 0, 0));
-	}
+	init_buffer();
 	auto vp = projection_ * view_;
 	for (const auto& mesh : meshs_) {
 		for (const auto& object : mesh.objects) {
@@ -142,64 +137,78 @@ void wm::Rst::display_rst(const std::string& filename)
 					clip_object->vex[i][1] = get_height(clip_object->vex[i][1]);
 					clip_object->vex[i][2] = (view_[2] * object->vex[i]) / (view_[3] * object->vex[i]);
 				}
-				rasterization(object, clip_object);
+				rasterization(clip_object);
 			}
 		}
 	}
 	save_file(filename);
 }
 
-void wm::Rst::plot(int x, int y, const Color& color)
+void wm::Rst::plot(int x, int y, const Vector3f& color)
 {
 	x = scene_height_ - 1 - x;
 	if (x >= 0 && x < scene_height_ && y >= 0 && y < scene_width_) {
-		buffer_[x][y] = color;
+		for (auto& buffer_color : buffer_[x][y].color) {
+			buffer_color = color;
+		}
 	}
 }
 
+void wm::Rst::plot(int x, int y, int k, const Vector3f& color)
+{
+	x = scene_height_ - 1 - x;
+	if (x >= 0 && x < scene_height_ && y >= 0 && y < scene_width_) {
+		buffer_[x][y].color[k] = color;
+	}
+}
 // clip_object->v: 0(screen space coor x), 1(screen space coor y), 2(view space coor z)
-void wm::Rst::rasterization(const std::shared_ptr<Object>& object, const std::shared_ptr<Object>& clip_object)
+void wm::Rst::rasterization(const std::shared_ptr<Object>& clip_object)
 {
 	// ToDo: msaa
 
 	// the index is very confuse, need to transform
 	using std::fmin;
 	using std::fmax;
-	auto fmax3 = [](float x, float y, float z) {return fmax(x, fmax(y, z)); };
-	auto fmin3 = [](float x, float y, float z) {return fmin(x, fmin(y, z)); };
 
 	// *must limit the x, y to screen, otherwise, the x, y out of screen will be calculate, it's a big time-cost
-	int x_min = std::round(fmax(0.f          , fmin3(clip_object->vex[0].x, clip_object->vex[1].x, clip_object->vex[2].x)));
-	int x_max = std::round(fmin(scene_width_ , fmax3(clip_object->vex[0].x, clip_object->vex[1].x, clip_object->vex[2].x)));
-	int y_min = std::round(fmax(0.f          , fmin3(clip_object->vex[0].y, clip_object->vex[1].y, clip_object->vex[2].y)));
-	int y_max = std::round(fmin(scene_height_, fmax3(clip_object->vex[0].y, clip_object->vex[1].y, clip_object->vex[2].y)));
+	int x_min = std::round(fmax(0.f          , math::fmin3(clip_object->vex[0].x, clip_object->vex[1].x, clip_object->vex[2].x)));
+	int x_max = std::round(fmin(scene_width_ , math::fmax3(clip_object->vex[0].x, clip_object->vex[1].x, clip_object->vex[2].x)));
+	int y_min = std::round(fmax(0.f          , math::fmin3(clip_object->vex[0].y, clip_object->vex[1].y, clip_object->vex[2].y)));
+	int y_max = std::round(fmin(scene_height_, math::fmax3(clip_object->vex[0].y, clip_object->vex[1].y, clip_object->vex[2].y)));
 
 	// <bug>, the pos is not right, think a good way to deal. 2020-9-1
 	// fixed, modify the triangle's pos to screen space. 2020-9-1
 
 	// <bug>, the z-buffer alogorithm is not right. 2020-9-2
 	// fixed!!! in view Matrix, the coor z is rotate to -z axis, so the z_inter must mul -1.f!!! 2020-9-2
+	int step = std::ceil(std::sqrt(samples_));
+	float gap = 1.f / step;
 	for (int x = x_min; x < x_max; ++x) {
 		for (int y = y_min; y < y_max; ++y) {
-			auto p = Vector2f(x + 0.5f, y + 0.5f);
-			if (clip_object->is_contain_point2d(p)) {
-				auto barycentric = clip_object->barycentric2d(p);
-				auto [alpha, beta, gamma] = barycentric;
-				float z_inter = -1.f / (alpha / clip_object->vex[0].z + beta / clip_object->vex[1].z + gamma / clip_object->vex[2].z);
-				
-				if (x >= 0 && x < scene_width_ && y >= 0 && y < scene_height_) {
-					if (z_inter < depth_[scene_height_ - 1 - y][x]) {
-						// ToDo: use payload shader 2020-9-4
-						// finish. 2020-9-7
-						Payload payload(clip_object, barycentric, z_inter);
-						auto color = shader_(payload);
+			if (x >= 0 && x < scene_width_ && y >= 0 && y < scene_height_) {
+				// msaa
+				auto mid = Vector2f(x + 0.5f, y + 0.5f);
+				auto mid_barycentric = clip_object->barycentric2d(mid);
+				float mid_z_inter = math::interpolate_view_space_z_depth(mid_barycentric, Vector3f(clip_object->vex[0].z, clip_object->vex[1].z, clip_object->vex[2].z));
+				Payload payload(clip_object, mid_barycentric, camera_.eye_pos, mid_z_inter);
+				Vector3f color = shader_(payload);
 
-
-						plot(y, x, color);
-						depth_[scene_height_ - 1 - y][x] = z_inter;
+				for (int i = 0; i < step; ++i) {
+					for (int j = 0; j < step; ++j) {
+						int k = i * step + j;
+						auto p = Vector2f(x + i * gap, y + j * gap);
+						if (clip_object->is_contain_point2d(p)) {
+							auto barycentric = clip_object->barycentric2d(p);
+							float z_inter = math::interpolate_view_space_z_depth(barycentric, Vector3f(clip_object->vex[0].z, clip_object->vex[1].z, clip_object->vex[2].z));
+							if (z_inter < buffer_[scene_height_ - 1 - y][x].depth[k]) {
+								plot(y, x, k, color);
+								buffer_[scene_height_ - 1 - y][x].depth[k] = z_inter;
+							}
+						}
 					}
 				}
 			}
+
 		}
 	}
 }
@@ -306,12 +315,12 @@ void wm::Rst::draw_line(float x0, float y0, float x1, float y1)
 	int xpxl1 = x_end;
 	int ypxl1 = ipart(y_end);
 	if (steep) {
-		plot(ypxl1, xpxl1, rfpart(y_end) * x_gap * 255.f);
-		plot(ypxl1 + 1, xpxl1, fpart(y_end) * x_gap * 255.f);
+		plot(ypxl1, xpxl1, rfpart(y_end) * x_gap);
+		plot(ypxl1 + 1, xpxl1, fpart(y_end) * x_gap);
 	}
 	else {
-		plot(xpxl1, ypxl1, rfpart(y_end) * x_gap * 255.f);
-		plot(xpxl1, ypxl1 + 1, fpart(y_end) * x_gap * 255.f);
+		plot(xpxl1, ypxl1, rfpart(y_end) * x_gap);
+		plot(xpxl1, ypxl1 + 1, fpart(y_end) * x_gap);
 	}
 	float intery = y_end + gradient;
 
@@ -322,25 +331,25 @@ void wm::Rst::draw_line(float x0, float y0, float x1, float y1)
 	int ypxl2 = ipart(y_end);
 
 	if (steep) {
-		plot(ypxl2, xpxl2, rfpart(y_end) * x_gap * 255.f);
-		plot(ypxl2 + 1, xpxl2, fpart(y_end) * x_gap * 255.f);
+		plot(ypxl2, xpxl2, rfpart(y_end) * x_gap);
+		plot(ypxl2 + 1, xpxl2, fpart(y_end) * x_gap);
 	}
 	else {
-		plot(xpxl2, ypxl2, rfpart(y_end) * x_gap * 255.f);
-		plot(xpxl2, ypxl2 + 1, fpart(y_end) * x_gap * 255.f);
+		plot(xpxl2, ypxl2, rfpart(y_end) * x_gap);
+		plot(xpxl2, ypxl2 + 1, fpart(y_end) * x_gap);
 	}
 
 	if (steep) {
 		for (int x = xpxl1 + 1; x <= xpxl2 - 1; ++x) {
-			plot(ipart(intery)      , x, rfpart(intery) * 255.f);
-			plot(ipart(intery) + 1, x,  fpart(intery) * 255.f);
+			plot(ipart(intery)      , x, rfpart(intery));
+			plot(ipart(intery) + 1, x,  fpart(intery));
 			intery = intery + gradient;
 		}
 	}
 	else {
 		for (int x = xpxl1 + 1; x <= xpxl2 - 1; ++x) {
-			plot(x, ipart(intery)    , rfpart(intery) * 255.f);
-			plot(x, ipart(intery) + 1,  fpart(intery) * 255.f);
+			plot(x, ipart(intery)    , rfpart(intery));
+			plot(x, ipart(intery) + 1,  fpart(intery));
 			intery = intery + gradient;
 		}
 	}
@@ -357,7 +366,9 @@ void wm::Rst::save_file(const std::string& filename)
 	file << "P6\n" << scene_width_ << " " << scene_height_ << "\n" << "255\n";
 	for (int i = 0; i < scene_height_; ++i) {
 		for (int j = 0; j < scene_width_; ++j) {
-			file << buffer_[i][j].r << buffer_[i][j].g << buffer_[i][j].b;
+			Vector3f vec_color = 1.f - buffer_[i][j]();
+			Color color = Color(vec_color.x * 255, vec_color.y * 255, vec_color.z * 255);
+			file << color.r << color.g << color.b;
 		}
 	}
 }

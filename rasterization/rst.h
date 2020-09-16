@@ -13,6 +13,7 @@
 #include "Object.h"
 #include "Camera.h"
 #include "Shader.h"
+#include "Pixel.h"
 
 void test();
 
@@ -27,9 +28,11 @@ namespace wm
 		Camera camera_;
 		size_t scene_height_;
 		size_t scene_width_;
-		std::function<Color(const Payload&)> shader_;
+		std::function<Vector3f(const Payload&)> shader_;
+
+		int samples_;
 	public:
-		Rst(size_t scene_height, size_t scene_width, const std::function<Color(const Payload&)> shader=shader::normal_fragment_shader)
+		Rst(size_t scene_height, size_t scene_width, const std::function<Vector3f(const Payload&)> shader=shader::normal_fragment_shader)
 			:
 			meshs_(),
 			model_(),
@@ -39,10 +42,12 @@ namespace wm
 			scene_height_(scene_height),
 			scene_width_(scene_width),
 			shader_(shader),
-			buffer_(std::vector<std::vector<Color> >(scene_height, std::vector<Color>(scene_width))),
-			depth_(std::vector<std::vector<float> >(scene_height, std::vector<float>(scene_width, (std::numeric_limits<float>::max)())))
+			samples_(1),
+			buffer_(std::vector<std::vector<Pixel> >(scene_height, std::vector<Pixel>(scene_width, Pixel(1))))
 		{}
-
+		// ToDo: set_background_color();
+		void open_msaa(int samples) { samples_ = samples; resize_buffer(); }
+		void close_msaa() { samples_ = 1; resize_buffer(); }
 		void read_obj(const std::string& filename, float aspect = 1.f, Vector4f pos = { 0,0,0,1 });
 		// ToDo: rotate
 		void add_mesh(const Mesh& mesh, float aspect = 1.f, Vector4f pos = { 0,0,0,1 });
@@ -75,11 +80,15 @@ namespace wm
 		void display_rst(const std::string& filename = "temp.ppm");
 
 	private:
-		std::vector<std::vector<Color> > buffer_;
-		std::vector<std::vector<float> > depth_;
+		std::vector<std::vector<Pixel> > buffer_;
+		void resize_buffer(){ buffer_ = std::vector<std::vector<Pixel> >(scene_height_, std::vector<Pixel>(scene_width_, Pixel(samples_))); }
+		void init_buffer() { for (auto& raw : buffer_) { std::fill(raw.begin(), raw.end(), Pixel(samples_)); } }
 
-		void plot(int x, int y, const Color& color);
-		void rasterization(const std::shared_ptr<Object>& object, const std::shared_ptr<Object>& clip_object);
+		void plot(int x, int y, const Vector3f& color);
+		// k is for super sample point
+		void plot(int x, int y, int k, const Vector3f& color);
+
+		void rasterization(const std::shared_ptr<Object>& clip_object);
 		void generate_model(const Vector4f& center_pos, float aspect);
 		void generate_view();
 		void generate_projection();
